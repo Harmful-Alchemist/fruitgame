@@ -30,11 +30,11 @@
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     class Mouth {
-        constructor(ratio, x, y, open, ctx) {
+        constructor(ratio, x, y, closed, ctx) {
             this.ratio = ratio;
             this.x = x;
             this.y = y;
-            this.open = open;
+            this.closed = closed;
             this.ctx = ctx;
         }
 
@@ -44,7 +44,7 @@
         draw(t, l) {
             this.ctx.fillStyle = t;
             this.ctx.strokeStyle = l;
-            if (this.open) { //TODO actually closed here? LEL
+            if (this.closed) {
                 this.ctx.fillStyle = "red";
                 this.ctx.fillRect(this.x - (15 * this.ratio), this.y - (15 * this.ratio), (Mouth.width * this.ratio) + (30 * this.ratio), (Mouth.height * this.ratio) + (30 * this.ratio));
                 this.ctx.fillStyle = t;
@@ -74,12 +74,14 @@
         }
 
         eat(fruit) {
-            if (!this.open) { //TODO the reversal lel
-                if (fruit.x >= this.x && fruit.y >= this.y && fruit.x <= (this.x + (Mouth.width * this.ratio)) && fruit.x <= (this.y + (Mouth.height * this.ratio))) {
+            if (!this.closed) {
+                if ((fruit.x + Fruit.width * this.ratio * 0.25) >= this.x
+                    && (fruit.y + Fruit.height * this.ratio * 0.25) >= this.y
+                    && (fruit.x + Fruit.width * this.ratio * 0.25) <= (this.x + (Mouth.width * this.ratio))
+                    &&  (fruit.y + Fruit.height * this.ratio * 0.25) <= (this.y + (Mouth.height * this.ratio))) {
                     return true;
                 }
             }
-
             return false;
         }
     }
@@ -92,13 +94,14 @@
             this.ratio = ratio;
             this.ctx = ctx;
         }
-
+        static height = 400;
+        static width = 300;
         draw() {
-            this.ctx.drawImage(this.img, this.x, this.y, 400 * this.ratio, 300 * this.ratio);
+            this.ctx.drawImage(this.img, this.x, this.y, Fruit.height * this.ratio, Fruit.width * this.ratio);
         }
 
         in(cursor_x, cursor_y) {
-            return cursor_x >= this.x && cursor_x <= (this.x + 400 * this.ratio) && cursor_y >= this.y && cursor_y <= (this.y + 300 * this.ratio);
+            return cursor_x >= this.x && cursor_x <= (this.x + Fruit.height * this.ratio) && cursor_y >= this.y && cursor_y <= (this.y + Fruit.width * this.ratio);
         }
 
         move(x, y) {
@@ -108,7 +111,7 @@
     }
 
     let mouth = new Mouth(1.0, 100, 100, true, ctx);
-    let fruit = new Fruit(0.5, document.getElementById("apple"), window.innerWidth / 2, window.innerHeight - 400, ctx);
+    let fruit = new Fruit(0.5, document.getElementById("apple"), window.innerWidth / 2, window.innerHeight - Fruit.height, ctx);
 
     let is_moving_fruit = false;
     let previous_touch;
@@ -175,7 +178,7 @@
         ctx.fillText(score, window.innerWidth / 2, 160);
 
         state = !state
-        mouth.open = state;
+        mouth.closed = state;
 
         if (go_up) {
             mouth.y = mouth.y - 10;
