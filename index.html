@@ -12,10 +12,25 @@
     </style>
 </head>
 <body>
-<canvas id="canvas"/>
+<canvas id="canvas"></canvas>
 <div style="display:none;">
     <img id="apple"
          src="apple.png" alt="apple"
+    >
+</div>
+<div style="display:none;">
+    <img id="prune"
+         src="prune.png" alt="prune"
+    >
+</div>
+<div style="display:none;">
+    <img id="pear"
+         src="pear.png" alt="pear"
+    >
+</div>
+<div style="display:none;">
+    <img id="banana"
+         src="banana.png" alt="banana"
     >
 </div>
 <script>
@@ -110,8 +125,13 @@
         }
     }
 
+    function getRandomInt(max) {
+        return Math.floor(Math.random() * max);
+    }
+
     let mouth = new Mouth(1.0, 100, 100, true, ctx);
-    let fruit = new Fruit(0.5, document.getElementById("apple"), window.innerWidth / 2, window.innerHeight - Fruit.height, ctx);
+    let fruits = ["apple", "prune", "pear", "banana"];
+    let fruit = new Fruit(0.5, document.getElementById(fruits[getRandomInt(fruits.length)]), window.innerWidth / 2, window.innerHeight - Fruit.height, ctx);
 
     let is_moving_fruit = false;
     let previous_touch;
@@ -158,7 +178,7 @@
     let score = 0;
     let ratio = 1.0;
 
-    function doThing(i) {
+    function doThing(_i) {
         if (mouth.y > ctx.canvas.height - (Mouth.height * mouth.ratio * 1.3)) {
             go_up = true;
         }
@@ -175,7 +195,7 @@
         ctx.fillStyle = "white";
         ctx.font = '50px consolas';
         ctx.strokeText("EZRA'S FRUIT GAME", window.innerWidth / 4, 100);
-        ctx.fillText(score, window.innerWidth / 2, 160);
+        ctx.fillText(score.toString(), window.innerWidth / 2, 160);
 
         state = !state
         mouth.closed = state;
@@ -187,7 +207,7 @@
         }
 
         if (mouth.eat(fruit)) {
-            fruit = new Fruit(0.5, document.getElementById("apple"), window.innerWidth / 2, window.innerHeight - 400, ctx);
+            fruit = new Fruit(0.5, document.getElementById(fruits[getRandomInt(fruits.length)]), window.innerWidth / 2, window.innerHeight - 400, ctx);
             ratio = ratio * 0.9;
             mouth.ratio = ratio
             fruit.ratio = ratio / 2;
