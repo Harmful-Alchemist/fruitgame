@@ -93,7 +93,7 @@
                 if ((fruit.x + Fruit.width * this.ratio * 0.25) >= this.x
                     && (fruit.y + Fruit.height * this.ratio * 0.25) >= this.y
                     && (fruit.x + Fruit.width * this.ratio * 0.25) <= (this.x + (Mouth.width * this.ratio))
-                    &&  (fruit.y + Fruit.height * this.ratio * 0.25) <= (this.y + (Mouth.height * this.ratio))) {
+                    && (fruit.y + Fruit.height * this.ratio * 0.25) <= (this.y + (Mouth.height * this.ratio))) {
                     return true;
                 }
             }
@@ -109,8 +109,10 @@
             this.ratio = ratio;
             this.ctx = ctx;
         }
+
         static height = 400;
         static width = 300;
+
         draw() {
             this.ctx.drawImage(this.img, this.x, this.y, Fruit.height * this.ratio, Fruit.width * this.ratio);
         }
@@ -131,7 +133,8 @@
 
     let mouth = new Mouth(1.0, 100, 100, true, ctx);
     let fruits = ["apple", "prune", "pear", "banana"];
-    let fruit = new Fruit(0.5, document.getElementById(fruits[getRandomInt(fruits.length)]), window.innerWidth / 2, window.innerHeight - Fruit.height, ctx);
+    let fruit_index = getRandomInt(fruits.length);
+    let fruit = new Fruit(0.5, document.getElementById(fruits[fruit_index]), window.innerWidth / 2, window.innerHeight - Fruit.height, ctx);
 
     let is_moving_fruit = false;
     let previous_touch;
@@ -139,12 +142,24 @@
         if (fruit.in(e.offsetX, e.offsetY)) {
             is_moving_fruit = true;
         }
+
+        if (in_button(e.offsetX, e.offsetY)) {
+            fruit_index = (fruit_index + 1) % fruits.length;
+            fruit.img = document.getElementById(fruits[fruit_index]);
+        }
     });
 
+    let touching = false;
     canvas.addEventListener("touchstart", e => {
         if (fruit.in(e.touches[0].pageX, e.touches[0].pageY)) {
             is_moving_fruit = true;
             previous_touch = e.touches[0];
+        }
+
+        if (!touching && in_button(e.touches[0].pageX, e.touches[0].pageY)) {
+            touching = true;
+            fruit_index = (fruit_index + 1) % fruits.length;
+            fruit.img = document.getElementById(fruits[fruit_index]);
         }
     });
 
@@ -167,6 +182,7 @@
 
     canvas.addEventListener("touchend", _ => {
         is_moving_fruit = false;
+        touching = false;
     });
 
     delay = 200;
@@ -177,6 +193,17 @@
 
     let score = 0;
     let ratio = 1.0;
+
+    function draw_button() {
+        ctx.fillStyle = "#3cb712";
+        ctx.arc(window.innerWidth * 0.8, window.innerHeight * 0.8, window.innerWidth * 0.02, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    function in_button(x, y) {
+        // (x - center_x)^2 + (y - center_y)^2 < radius^2
+        return ((x - window.innerWidth * 0.8) ** 2) + ((y - window.innerHeight * 0.8) ** 2) < (window.innerWidth * 0.02) ** 2;
+    }
 
     function doThing(_i) {
         if (mouth.y > ctx.canvas.height - (Mouth.height * mouth.ratio * 1.3)) {
@@ -196,6 +223,7 @@
         ctx.font = '50px consolas';
         ctx.strokeText("EZRA'S FRUIT GAME", window.innerWidth / 4, 100);
         ctx.fillText(score.toString(), window.innerWidth / 2, 160);
+        draw_button();
 
         state = !state
         mouth.closed = state;
@@ -207,7 +235,8 @@
         }
 
         if (mouth.eat(fruit)) {
-            fruit = new Fruit(0.5, document.getElementById(fruits[getRandomInt(fruits.length)]), window.innerWidth / 2, window.innerHeight - 400, ctx);
+            fruit_index = getRandomInt(fruits.length);
+            fruit = new Fruit(0.5, document.getElementById(fruits[fruit_index]), window.innerWidth / 2, window.innerHeight - 400, ctx);
             ratio = ratio * 0.9;
             mouth.ratio = ratio
             fruit.ratio = ratio / 2;
@@ -218,11 +247,9 @@
         fruit.draw();
     }
 
-
     times.forEach(function (i) {
         setTimeout(doThing, i * delay, i);
     });
-
 
 </script>
 </body>
