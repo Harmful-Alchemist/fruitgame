@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3.3</title>
+</head>
+<body>
+<p>
+    Trying to show search algorithms for exercise 3.3 of
+    <a href="https://artint.info/2e/html2e/ArtInt2e.Ch3.S11.html">Artificial Intelligence: foundations of computational
+        agents</a>.
+    Orange shows the current frontier, purple shows the visited nodes. Cycle pruning is done by keeping the first path
+    found to a node,
+    which is not necessarily the shortest path. Make the animation faster or slower by changing the time per step.
+</p>
+<div>
+    <button onclick="do_dfs()">Depth-first search</button>
+    <button onclick="do_gbfs()">Greedy best-first search</button>
+    <button onclick="do_hdfs()">Heuristic-depth first search</button>
+    <button onclick="do_a_star()">A* search</button>
+    <button onclick="do_bfs()">Breadth-first search</button>
+    <label for="tick_time">Time per step</label><input type="number" min="0" value="200" id="tick_time">
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+    const buttons = document.getElementsByTagName("button");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.canvas.width = 1000;
+    ctx.canvas.height = 1000;
+
+    class Point {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        eq(other) {
+            return other.x === this.x && other.y === this.y
+        }
+
+        draw(color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(this.x * 100, this.y * 100, 100, 100);
+        }
+
+        manhattan_distance() {
+            return Math.abs(this.x - goal.x) + Math.abs(this.y - goal.y);
+        }
+    }
+
+    function draw_path(path) {
+        ctx.fillStyle = "black"
+        ctx.font = "24px serif";
+        const up = "↑";
+        const down = "↓";
+        const left = "←";
+        const right = "→";
+
+        for (let i = 0; i < path.length - 1; i++) {
+            let dir = down;
+            let p = path[i];
+            if (path[i + 1].eq(new Point(p.x, p.y - 1))) {
+                dir = up;
+            } else if (path[i + 1].eq(new Point(p.x - 1, p.y))) {
+                dir = left
+            } else if (path[i + 1].eq(new Point(p.x + 1, p.y))) {
+                dir = right
+            }
+            ctx.fillText(dir, p.x * 100 + 40, p.y * 100 + 60);
+        }
+
+        for (let b of buttons) {
+            b.removeAttribute("disabled");
+        }
+    }
+
+    const original_start = new Point(3, 5);
+
+    const goal = new Point(2, 2);
+    goal_f = x => x.eq(goal);
+
+    function tick() {
+        let tick = document.getElementById("tick_time").value;
+        if (tick) {
+            return tick;
+        } else {
+            return 200;
+        }
+    }
+
+    const display = (visited, frontier) => {
+        frontier.map(x => x.at(-1)).filter(x => !x.eq(original_start)).filter(x => !x.eq(goal)).forEach(x => x.draw("#F5793A"));
+        visited.filter(x => !x.eq(original_start)).filter(x => !x.eq(goal)).forEach(x => x.draw("#A95AA1"));
+        // console.log("visited: " + JSON.stringify(visited) + "\nfrontier: " + JSON.stringify(frontier))
+    }
+
+    const blocked = [new Point(1, 4), new Point(2, 3), new Point(2, 5), new Point(3, 3), new Point(4, 3), new Point(5, 3), new Point(6, 3), new Point(6, 5)];
+
+
+    function set_up() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeRect(1, 1, 800, 800);
+        goal.draw("#C6D4E1");
+        ctx.fillStyle = "black"
+        ctx.font = "24px serif";
+        ctx.fillText("goal", goal.x * 100 + 25, goal.y * 100 + 60);
+        original_start.draw("#C6D4E1");
+        ctx.fillStyle = "black"
+        ctx.font = "24px serif";
+        ctx.fillText("start", original_start.x * 100 + 20, original_start.y * 100 + 60);
+        blocked.forEach(x => x.draw("black"));
+    }
+
+
+    // 8 x 8 grid
+    const nodes = [];
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const p = new Point(i, j);
+            if (!blocked.some(x => x.eq(p))) {
+                nodes.push(p);
+            }
+        }
+    }
+
+    function prune(visited, frontier) {
+        let next_start = frontier.pop();
+        if (next_start) {
+            while (visited.some(x => x.eq(next_start.at(-1)))) {
+                console.log("ehm")
+                next_start = frontier.pop();
+                if (!next_start) {
+                    return;
+                }
+            }
+        }
+        return next_start;
+    }
+
+    // order: up, left, right, down
+    neighbors = p => [new Point(p.x, p.y - 1), new Point(p.x - 1, p.y), new Point(p.x + 1, p.y), new Point(p.x, p.y + 1)].filter(z => nodes.some(a => a.eq(z)));
+
+    dfs = (start, frontier, visited) => {
+        let start_n = start.at(-1);
+        if (goal_f(start_n)) {
+            draw_path(start);
+            return;
+        }
+        visited.push(start_n);
+
+        neighbors(start_n).reverse().forEach(neighbor => {
+                let path = start.slice();
+                path.push(neighbor);
+                frontier.push(path);
+            }
+        );
+
+        display(visited, frontier);
+
+        let next_start = prune(visited, frontier);
+
+        if (next_start) {
+            setTimeout(() => dfs(next_start, frontier, visited), tick())
+        }
+    }
+
+    bfs = (start, frontier, visited) => {
+        let start_n = start.at(-1);
+        if (goal_f(start_n)) {
+            draw_path(start);
+            return;
+        }
+        visited.push(start_n);
+
+        neighbors(start_n).forEach(neighbor => {
+                let path = start.slice();
+                path.push(neighbor);
+                frontier.push(path);
+            }
+        );
+
+        display(visited, frontier);
+        frontier.sort();
+        let next_start = frontier.shift();
+
+        if (next_start) {
+            while (visited.some(x => x.eq(next_start.at(-1)))) {
+                next_start = frontier.shift();
+                if (!next_start) {
+                    return;
+                }
+            }
+            setTimeout(() => bfs(next_start, frontier, visited), tick())
+        }
+    }
+
+    function manhattan_sort(a, b) {
+        if (a.manhattan_distance() > b.manhattan_distance()) {
+            return -1
+        } else if (a.manhattan_distance() < b.manhattan_distance()) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    gbfs = (start, frontier, visited) => {
+        let start_n = start.at(-1);
+        if (goal_f(start_n)) {
+            draw_path(start);
+            return;
+        }
+        visited.push(start_n);
+
+        neighbors(start_n).forEach(neighbor => {
+                let path = start.slice();
+                path.push(neighbor);
+                frontier.push(path);
+            }
+        );
+        display(visited, frontier);
+
+
+        //Manhattan distance
+        frontier.sort((a, b) => manhattan_sort(a.at(-1), b.at(-1)));
+
+        let next_start = prune(visited, frontier);
+
+        if (next_start) {
+            setTimeout(() => gbfs(next_start, frontier, visited), tick())
+        }
+    }
+
+    hdfs = (start, frontier, visited) => {
+        let start_n = start.at(-1);
+        if (goal_f(start_n)) {
+            draw_path(start);
+            return;
+        }
+        visited.push(start_n);
+
+        neighbors(start_n).sort(manhattan_sort).forEach(neighbor => {
+                let path = start.slice();
+                path.push(neighbor);
+                frontier.push(path);
+            }
+        );
+        display(visited, frontier);
+
+        let next_start = prune(visited, frontier);
+
+        if (next_start) {
+            setTimeout(() => hdfs(next_start, frontier, visited), tick())
+        }
+    }
+
+    a_star = (start, frontier, visited) => {
+        let start_n = start.at(-1);
+        if (goal_f(start_n)) {
+            draw_path(start);
+            return;
+        }
+        visited.push(start_n);
+
+        neighbors(start_n).forEach(neighbor => {
+                let path = start.slice();
+                path.push(neighbor);
+                frontier.push(path);
+            }
+        );
+        display(visited, frontier);
+
+
+        //Manhattan distance
+        frontier.sort((a, b) => {
+            let a_n = a.at(-1);
+            let b_n = b.at(-1);
+            if (a_n.manhattan_distance() + a.length > b_n.manhattan_distance() + b.length) {
+                return -1
+            } else if (a_n.manhattan_distance() + a.length < b_n.manhattan_distance() + b.length) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+
+        let next_start = prune(visited, frontier);
+
+        if (next_start) {
+            setTimeout(() => a_star(next_start, frontier, visited), tick())
+        }
+    }
+
+    // Order DFS is up, left, right & down.
+    function do_dfs() {
+        set_up();
+        for (let b of buttons) {
+            b.setAttribute("disabled", "disabled");
+        }
+        dfs([original_start], [], []);
+    }
+
+    function do_gbfs() {
+        set_up();
+        for (let b of buttons) {
+            b.setAttribute("disabled", "disabled");
+        }
+        gbfs([original_start], [], []);
+    }
+
+    function do_hdfs() {
+        set_up();
+        for (let b of buttons) {
+            b.setAttribute("disabled", "disabled");
+        }
+        hdfs([original_start], [], []);
+    }
+
+    function do_a_star() {
+        set_up();
+        for (let b of buttons) {
+            b.setAttribute("disabled", "disabled");
+        }
+        a_star([original_start], [], []);
+    }
+
+    function do_bfs() {
+        set_up();
+        for (let b of buttons) {
+            b.setAttribute("disabled", "disabled");
+        }
+        bfs([original_start], [], []);
+    }
+
+    set_up();
+</script>
+</body>
+</html>
