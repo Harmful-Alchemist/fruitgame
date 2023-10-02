@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CSP</title>
+    <style>
+        .info {
+            border: 1px solid black;
+            padding: 2px;
+        }
+
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            flex-direction: row;
+            /*justify-content: space-evenly;*/
+        }
+
+        .puzzle {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-auto-rows: 100px;
+            gap: 1px;
+        }
+
+        .square {
+            border: 1px solid black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .red_text {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<p>
+    Inspired by exercise 4.1 of
+    <a href="https://artint.info/2e/html2e/ArtInt2e.Ch4.S12.html">Artificial Intelligence: foundations of computational
+        agents</a>.
+    Click a button for an algorithm and step through it with the step button.
+</p>
+
+<div>
+    <input type="checkbox" id="per_square" name="per_square" onclick="go()" checked/>
+    <label for="per_square">Uncheck this box to change the problem representation to per square instead of per
+        word</label>
+</div>
+<p id="current_algo">Select an algorithm</p>
+<div class="container">
+    <button onclick="gat_algo()">Generate and test</button>
+    <button onclick="consistency_algo()">Using consistency with iterative best improvement</button>
+</div>
+<div class="container">
+    <div id="puzzle" class="puzzle">
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+        <div class="square"></div>
+    </div>
+
+    <button id="check_button">Step</button>
+    <p id="extra info" class="info">
+    </p>
+    <figure>
+        <figcaption>Variables</figcaption>
+        <ul id="v_list" class="vars"></ul>
+    </figure>
+    <figure>
+        <figcaption>Constraints</figcaption>
+        <ul id="c_list" class="constraints"></ul>
+    </figure>
+</div>
+
+<figure class="info">
+    <figcaption>Possible words</figcaption>
+    <ul id="w_list"  class="words"></ul>
+</figure>
+<script>
+    const words = ["add", "age", "aid", "aim", "air", "are", "arm", "art", "bad", "bat", "bee", "boa", "dim", "ear", "eel", "eft", "lee", "oaf"];
+    const w_list = document.getElementById("w_list");
+    words.forEach(w => {
+        let w_node = document.createElement("li");
+        w_node.appendChild(document.createTextNode(w))
+        w_list.appendChild(w_node);
+    });
+    let info = "";
+    document.getElementById("check_button").disabled = true;
+
+    class Square {
+        constructor(name, domain, current) {
+            this.name = name;
+            this.domain = domain;
+            this.current = current;
+        }
+    }
+
+    class Constraint {
+        constructor(var_indices, text) {
+            this.var_indices = var_indices;
+            this.text = text;
+        }
+
+        check(problem) {
+            return eval(this.text)(problem);
+        }
+    }
+
+    function go() {
+        document.getElementById("check_button").disabled = true;
+        document.getElementById("current_algo").replaceChildren(document.createTextNode("Select an algorithm"));
+        problem1 = gen_problem();
+        renderProblem1(problem1);
+
+    }
+
+    function gen_problem() {
+        if (document.getElementById("per_square").checked) {
+            return gen_p2();
+        } else {
+            return gen_p1();
+        }
+    }
+
+    function gen_p1() {
+        let problem1 = {
+            variables: [],
+            constraints: [],
+            type: "squares"
+        }
+
+        for (let i = 0; i < 9; i++) {
+            problem1.variables.push(new Square(`square ${i + 1}`, ["a", "b", "d", "e", "f", "g", "i", "l", "m", "o", "r", "t"], ""));
+        }
+
+        const problem1constraint = "problem => words.includes(problem.variables[this.var_indices[0]].current + problem.variables[this.var_indices[1]].current + problem.variables[this.var_indices[2]].current)";
+
+        [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8]].forEach(indices => {
+            problem1.constraints.push(new Constraint(indices, problem1constraint))
+        })
+        return problem1;
+    }
+
+    function gen_p2() {
+        let problem2 = {
+            variables: [],
+            constraints: [],
+            type: "words"
+        }
+
+        for (let i = 0; i < 3; i++) {
+            problem2.variables.push(new Square(`vertical ${i + 1}`, [...words], ""));
+        }
+
+        for (let i = 0; i < 3; i++) {
+            problem2.variables.push(new Square(`horizontal ${i + 1}`, [...words], ""));
+        }
+
+        [[0, 3, 4, 5], [1, 3, 4, 5], [2, 3, 4, 5]].forEach(indices => {
+            const problem2constraint = `problem => problem.variables[this.var_indices[0]].current[0]
+            && problem.variables[this.var_indices[0]].current[0] === problem.variables[this.var_indices[1]].current[${indices[0]}]
+            && problem.variables[this.var_indices[0]].current[1] === problem.variables[this.var_indices[2]].current[${indices[0]}]
+            && problem.variables[this.var_indices[0]].current[2] === problem.variables[this.var_indices[3]].current[${indices[0]}]`;
+            problem2.constraints.push(new Constraint(indices, problem2constraint))
+        })
+        return problem2;
+    }
+
+    let problem1 = gen_problem();
+
+    function renderProblem1(problem) {
+
+        let puzzle = document.getElementById("puzzle");
+
+        if (problem.type === "squares") {
+            for (i in problem.variables) {
+                puzzle.children[i].textContent = problem.variables[i].current;
+            }
+        } else {
+            let k = 0;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (problem.variables[j].current[i] === problem.variables[i + 3].current[j]) {
+                        puzzle.children[k].textContent = problem.variables[j].current[i];
+                    } else {
+                        puzzle.children[k].textContent = `${problem.variables[j].current[i]}|${problem.variables[i + 3].current[j]}`;
+                    }
+                    k++;
+                }
+            }
+        }
+
+        let vs = document.getElementById("v_list");
+        vs.replaceChildren();
+        problem.variables.forEach(v => {
+            let v_node = document.createElement("li");
+            v_node.appendChild(document.createTextNode(`${v.name}: {${v.domain}}`))
+            vs.appendChild(v_node);
+        });
+
+        let cs = document.getElementById("c_list");
+        cs.replaceChildren();
+        problem.constraints.forEach(c => {
+            let c_node = document.createElement("li");
+
+
+            let vars = [];
+            c.var_indices.forEach(i => vars.push(problem.variables[i].name))
+            c_node.appendChild(document.createTextNode(`Constraint for variables ${vars}: ${c.text}`))
+            cs.appendChild(c_node);
+
+            if (!c.check(problem)) {
+                c_node.classList.add("red_text");
+                c_node.textContent = "❌ "+c_node.textContent;
+            } else {
+                c_node.textContent = "✅ "+c_node.textContent;
+            }
+        });
+
+        if (problem1.constraints.every(c => c.check(problem1))) {
+            info = "Finished!";
+            document.getElementById("check_button").disabled = true;
+        }
+        document.getElementById("extra info").replaceChildren(document.createTextNode(info));
+    }
+
+    renderProblem1(problem1);
+
+    function generate_and_test_step() {
+        problem1.variables.forEach(v => v.current = v.domain[Math.floor(Math.random() * v.domain.length)]);
+        renderProblem1(problem1);
+    }
+
+    let todo = [];
+    let all_todos = [];
+    let tried = [];
+    let round = 0;
+
+    let animation = document.getElementById("puzzle").animate([{transform: "rotate(360deg)"}], {
+        duration: 5000,
+        iterations: 10000,
+    });
+    animation.cancel();
+
+    function update_domains() {
+        let [X, c] = todo.pop();
+        let Ys = c.var_indices.filter(i => i != X);
+        let ND = [];
+        if (problem1.type === "squares") {
+            ND = problem1.variables[X].domain.filter(
+                x => problem1.variables[Ys[0]].domain.some(y1 =>
+                    problem1.variables[Ys[1]].domain.some(y2 => {
+                            problem1.variables[X].current = x;
+                            problem1.variables[Ys[0]].current = y1;
+                            problem1.variables[Ys[1]].current = y2;
+                            return c.check(problem1);
+                        }
+                    )));
+        } else {
+            ND = problem1.variables[X].domain.filter(
+                x => problem1.variables[Ys[0]].domain.some(y1 =>
+                    problem1.variables[Ys[1]].domain.some(y2 =>
+                        problem1.variables[Ys[2]].domain.some(y3 => {
+                                problem1.variables[X].current = x;
+                                problem1.variables[Ys[0]].current = y1;
+                                problem1.variables[Ys[1]].current = y2;
+                                problem1.variables[Ys[2]].current = y3;
+                                return c.check(problem1);
+                            }
+                        ))));
+        }
+        if (JSON.stringify(ND) !== JSON.stringify(problem1.variables[X].domain)) {
+            all_todos.forEach(t => {
+                    const [Z, c1] = t;
+                    if (!todo.includes(t) && Z !== X && c1 !== c && c1.var_indices.includes(X) && c1.var_indices.includes(Z)) {
+                        todo.push(t);
+                    }
+                }
+            )
+            info = `Updated ${problem1.variables[X].name}s domain from [${problem1.variables[X].domain}] to [${ND}] `;
+            problem1.variables[X].domain = ND;
+
+        }
+        problem1.variables.forEach(v => v.current = "");
+        renderProblem1(problem1);
+    }
+
+    function consistency_step() {
+        if (todo.length > 1) {
+            document.getElementById("check_button").disabled = true;
+            animation.play();
+            animation.ready.then(_ => {
+                update_domains();
+                animation.cancel();
+                document.getElementById("check_button").disabled = false;
+            });
+        } else {
+            if (round === 0) {
+                problem1.variables.forEach(v => v.current = v.domain[0]);
+                round++;
+                console.log("hello!")
+            }
+
+            let successors = [];
+
+            for (let i = 0; i < problem1.variables.length; i++) {
+                let assignment = structuredClone(problem1);
+                assignment.constraints = [...problem1.constraints];
+                const cvar = assignment.variables[i];
+                const domain = cvar.domain;
+                const next_i = (domain.indexOf(cvar.current) + 1) % domain.length;
+                cvar.current = domain[next_i];
+                successors.push({
+                    score: assignment.constraints.filter(c => c.check(assignment)).length,
+                    successor: assignment
+                })
+            }
+
+            successors.sort((a, b) => b.score - a.score);
+            successors = successors.filter(s => !tried.includes(JSON.stringify(s.successor.variables.map(x => x.current))));
+
+            info = `Generate & solve with iterative best improvement!
+                Score of previous assignment = ${problem1.constraints.filter(c => c.check(problem1)).length}.
+                New successors [${successors.map(s => `(score: ${s.score} ${s.successor.variables.map(v => v.current)})`)}].
+                Chose highest score.`;
+            renderProblem1(problem1);
+            problem1 = successors[0].successor;
+            tried.push(JSON.stringify(successors[0].successor.variables.map(x => x.current)));
+        }
+    }
+
+    function gat_algo() {
+        info = "";
+        document.getElementById("check_button").disabled = false;
+        problem1 = gen_problem();
+        renderProblem1(problem1);
+        let ca = document.getElementById("current_algo");
+        ca.replaceChildren(document.createTextNode("Currently using: generate and test!"));
+        let step_button = document.getElementById("check_button");
+        step_button.onclick = generate_and_test_step;
+    }
+
+    function consistency_algo() {
+        round = 0;
+        document.getElementById("check_button").disabled = false;
+        problem1 = gen_problem();
+        renderProblem1(problem1);
+        problem1.constraints.forEach(
+            c => c.var_indices.forEach(v => todo.push([v, c]))
+        )
+        all_todos = [...todo];
+        let ca = document.getElementById("current_algo");
+        ca.replaceChildren(document.createTextNode("Currently using: a consistency algorithm!"));
+        let step_button = document.getElementById("check_button");
+        step_button.onclick = consistency_step;
+    }
+
+</script>
+
+</body>
+</html>
