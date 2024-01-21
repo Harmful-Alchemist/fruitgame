@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Embedding site demo</title>
+    <style>
+        .iframeContainer {
+            display: inline-block;
+        }
+
+        .hoverBox {
+            display: none;
+            position: absolute;
+            width: 400px;
+            height: 200px;
+            background-color: lightblue;
+            border: 1px solid #000;
+            padding: 10px;
+            z-index: 10;
+            overflow: hidden;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+    </style>
+    <script>
+        var isHoverBoxVisible = false;
+        var hoverBoxTimeout;
+
+        function showHoverBox(event, hoverBoxId) {
+            if (!isHoverBoxVisible) {
+                clearTimeout(hoverBoxTimeout);
+                var hoverBox = document.getElementById(hoverBoxId);
+                var containerRect = event.currentTarget.getBoundingClientRect();
+                hoverBox.style.display = 'block';
+                hoverBox.style.left = (event.clientX - containerRect.left) + 'px';
+                hoverBox.style.top = (event.clientY - containerRect.top) + 'px';
+                isHoverBoxVisible = true;
+            }
+        }
+
+        function hideHoverBox(hoverBoxId) {
+            clearTimeout(hoverBoxTimeout);
+            hoverBoxTimeout = setTimeout(function () {
+                var hoverBox = document.getElementById(hoverBoxId);
+                hoverBox.style.display = 'none';
+                isHoverBoxVisible = false;
+            }, 500);
+        }
+
+        function downloadDisabledVerificationNeeded(event) {
+            event.preventDefault();
+            alert("Download is currently disabled. Verification is needed first.");
+        }
+
+        // Disable all download links initially:
+        document.addEventListener('DOMContentLoaded', (event) => {
+            var downloadLinks = document.querySelectorAll('.downloadLink');
+            downloadLinks.forEach(function (link) {
+                link.addEventListener('click', downloadDisabledVerificationNeeded);
+            });
+        });
+
+        // Listen to messages from iframes:
+        window.addEventListener("message", function (event) {
+            // TODO: Verify origin of message for security:
+            // if (event.origin === "http://expected-domain.com") {
+
+            // Process message:
+            var data = event.data;
+            if (!data.hoverBoxId)
+                return;
+
+            var hoverBox = document.getElementById(data.hoverBoxId);
+            var embedContainer = document.getElementById(data.embedContainerId);
+
+            var content = '';
+            if (data.errorMessage) {
+                content = '<div>Error: ' + data.errorMessage + '</div>';
+            } else {
+                content = '<h3>Signature Information</h3>' +
+                    '<ul>' +
+                    '<li>Filename: ' + data.filename + '</li>' +
+                    '<li>Public Key: ' + data.publicKey + '</li>' +
+                    '<li>Signature: ' + data.signature + '</li>' +
+                    '<li>Timestamp signed: ' + data.timestamp + '</li>' +
+                    '<li>Verification: ' + (data.verificationOK ? 'OK' : 'Failed') + '</li>';
+                if (data.verificationOK)
+                    content += '<li><a href="' + data.targetLink + '">Download link</a></li>';
+                content += '</ul>';
+                var downloadLink = embedContainer.querySelector('.downloadLink');
+                downloadLink.removeEventListener('click', downloadDisabledVerificationNeeded);
+                if (!data.verificationOK) {
+                    downloadLink.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        alert("Verification has failed. Download not allowed.");
+                    });
+                }
+            }
+            hoverBox.innerHTML = content;
+        });
+    </script>
+</head>
+<body>
+
+<h1>Werkende peer:</h1>
+<div class="embedContainer" id="embedContainer2">
+    <a href="https://harmful-alchemist.github.io/fruitgame/pear.png" class="downloadLink">Download link 2</a>
+    <div class="iframeContainer" onmouseenter="showHoverBox(event, 'hoverBox2')"
+         onmouseleave="hideHoverBox('hoverBox2')">
+        <iframe src="http://dsd.rm.kiwi/ou/ext/435172940379445b76d2505ca466c278b7366e6c8245d37de6681262375938f78e2cbf48f4b1c4dbc7fc8a9deacf6473ede7c576e60a5f5183d8d4bf9174b60d/?target=https%3A%2F%2Fharmful-alchemist.github.io%2Ffruitgame%2Fpear.png&linkId=2"
+                width="20" height="20"
+                style="border: none"></iframe>
+        <div class="hoverBox" id="hoverBox2"></div>
+    </div>
+</div>
+
+<h1>Niet werkende appel:</h1>
+<div class="embedContainer" id="embedContainer3">
+    <a href="https://harmful-alchemist.github.io/fruitgame/apple.png" class="downloadLink">Download link 2</a>
+    <div class="iframeContainer" onmouseenter="showHoverBox(event, 'hoverBox3')"
+         onmouseleave="hideHoverBox('hoverBox3')">
+        <iframe src="http://dsd.rm.kiwi/ou/ext/435172940379445b76d2505ca466c278b7366e6c8245d37de6681262375938f78e2cbf48f4b1c4dbc7fc8a9deacf6473ede7c576e60a5f5183d8d4bf9174b60d/?target=https%3A%2F%2Fharmful-alchemist.github.io%2Ffruitgame%apple.png&linkId=2"
+                width="20" height="20"
+                style="border: none"></iframe>
+        <div class="hoverBox" id="hoverBox3"></div>
+    </div>
+</div>
+
+
+</body>
+</html>
